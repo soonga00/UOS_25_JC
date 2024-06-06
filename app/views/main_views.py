@@ -42,8 +42,8 @@ def register():
     try:
         data = request.get_json()
         branch_code = data.get('branch_code')
-        userid = data.get('userid')
-        password = data.get('password')
+        userid = data.get('branch_id')
+        password = data.get('branch_pw')
 
         BranchList = current_app.tables.get('branch_list')
         # 지점이 존재하면, 회원 등록
@@ -82,13 +82,14 @@ def login():
     branch_pw = data.get('branch_pw')
 
     BranchList = current_app.tables['branch_list']
-    branch = BranchList.query.filter_by(branch_id=branch_id).first()
+    query = db.select(BranchList).where(BranchList.c.branch_id == branch_id)
+    branch = db.session.execute(query).fetchone()
+
     if branch and bcrypt.check_password_hash(branch.branch_pw, branch_pw):
         access_token = create_access_token(identity=branch.branch_code)
         return jsonify(access_token=access_token), 200
 
     return jsonify({"msg": "로그인 실패"}), 401
-
 
 @bp.route('/protected', methods=['GET'])
 @jwt_required()
