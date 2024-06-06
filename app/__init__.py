@@ -34,7 +34,7 @@ def create_app():
         db.session.configure(bind=engine)
 
         #blueprint
-        from .views import main_views, charge_views, emp_views, order_views, return_views, sale_views, sell_views, stock_views, work_views
+        from .views import main_views, charge_views, emp_views, order_views, return_views, sale_views, sell_views, stock_views, work_views, item_views
         app.register_blueprint(main_views.bp)
         app.register_blueprint(charge_views.bp_charge)
         app.register_blueprint(emp_views.bp_emp)
@@ -44,6 +44,7 @@ def create_app():
         app.register_blueprint(sell_views.bp_sell)
         app.register_blueprint(stock_views.bp_stock)
         app.register_blueprint(work_views.bp_work)
+        app.register_blueprint(item_views.bp_item)
 
 
         from .models import mapped_tables
