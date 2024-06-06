@@ -27,15 +27,13 @@ def get_data():
 @bp.route('/map')
 def map():
 
-    BranchList = current_app.tables.get('emp')
+    BranchList = current_app.tables.get('branch_list')
     if BranchList is None:
         raise Exception("User table not found in mapped tables")
     # BranchList = current_app.tables['users']
 
     bb = db.session.query(BranchList).all()
     print("branch:", bb)
-    b_list = [{ "no": b.emp_no, "name": b.nm, "rank": b.rank } for b in bb]
-    print("list", b_list)
     return jsonify({"message": "Database connection successful"}), 200
 
 
@@ -47,9 +45,13 @@ def register():
         userid = data.get('userid')
         password = data.get('password')
 
-        BranchList = current_app.tables['BranchList']
+        BranchList = current_app.tables.get('branch_list')
         # 지점이 존재하면, 회원 등록
-        branch = BranchList.query.filter_by(branch_code=branch_code).first()
+
+        query = db.select(BranchList).where(BranchList.c.branch_code == branch_code)
+        #branch = BranchList.query.filter_by(branch_code=branch_code).first()
+        branch = db.session.execute(query).fetchone()
+
         if branch is None:
             return jsonify({"msg": "등록되지 않은 지점임."}), 400
 
@@ -57,8 +59,13 @@ def register():
             return jsonify({"msg": "이미 아이디가 존재함. "}), 400
 
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        branch.branch_id = userid
-        branch.branch_pw = hashed_password
+        update_query = (
+            db.update(BranchList)
+            .where(BranchList.c.branch_code == branch_code)
+            .values(branch_id=userid, branch_pw=hashed_password)
+        )
+
+        db.session.execute(update_query)
         db.session.commit()
 
         return jsonify({"msg": "지점 아이디 등록 성공"}), 200
@@ -74,7 +81,7 @@ def login():
     branch_id = data.get('branch_id')
     branch_pw = data.get('branch_pw')
 
-    BranchList = current_app.tables['BranchList']
+    BranchList = current_app.tables['branch_list']
     branch = BranchList.query.filter_by(branch_id=branch_id).first()
     if branch and bcrypt.check_password_hash(branch.branch_pw, branch_pw):
         access_token = create_access_token(identity=branch.branch_code)
