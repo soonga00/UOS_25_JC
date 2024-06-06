@@ -4,7 +4,7 @@ from app import db
 metadata = MetaData()
 
 # 수동으로 users 테이블 매핑
-users_table = Table('users', metadata, autoload_with=db.engine) # for TEST
+# users_table = Table('users', metadata, autoload_with=db.engine) # for TEST
 
 ## stock 빼고 잘 매핑됨
 orders = Table('orders', metadata, autoload_with=db.engine)
@@ -40,7 +40,7 @@ item_img = Table('item_img', metadata, autoload_with=db.engine)
 def setup_manual_map():
     metadata.create_all(db.engine)
     return {
-        'users': users_table, #for TEST
+        # 'users': users_table, #for TEST
         'orders': orders,
         'branch_list': branch_list,
         'return_dispose_list': return_dispose_list,

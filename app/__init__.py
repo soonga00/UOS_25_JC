@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from sqlalchemy import create_engine
+from flask_cors import CORS
 
 import config
 import os
@@ -13,6 +14,7 @@ bcrypt = Bcrypt()
 jwt = JWTManager()
 def create_app():
     app = Flask(__name__)
+    CORS(app)
     app.config.from_object(config.DevelopmentConfig)
 
     os.environ['NLS_LANG'] = 'KOREAN_KOREA.AL32UTF8'

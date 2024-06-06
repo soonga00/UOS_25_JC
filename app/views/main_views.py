@@ -85,9 +85,14 @@ def login():
     query = db.select(BranchList).where(BranchList.c.branch_id == branch_id)
     branch = db.session.execute(query).fetchone()
 
-    if branch and bcrypt.check_password_hash(branch.branch_pw, branch_pw):
-        access_token = create_access_token(identity=branch.branch_code)
-        return jsonify(access_token=access_token), 200
+    if branch:
+        if bcrypt.check_password_hash(branch.branch_pw, branch_pw):
+            access_token = create_access_token(identity=branch.branch_code)
+            return jsonify(access_token=access_token), 200
+        else:
+            print('비밀번호가 잘못되었습니다.')
+    else:
+        print('브랜치 아이디를 찾을 수 없습니다.')
 
     return jsonify({"msg": "로그인 실패"}), 401
 
