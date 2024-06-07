@@ -11,6 +11,7 @@ bp_work = Blueprint('work', __name__, url_prefix='/work')
 @bp_work.route('/',methods=['POST'])
 @jwt_required()
 def start():
+    # TODO : join문으로 바꾸기
     try:
         data = request.get_json()
         emp_no = data.get('emp_no')
