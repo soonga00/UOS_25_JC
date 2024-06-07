@@ -69,3 +69,45 @@ def start():
 
     # 만약 직원 번호가 직원지점 목록에 존재한다면, where branch_code == 로그인한 지점
     # 근무기록 INSERT
+
+@bp_work.route('/records', methods=['GET'])
+@jwt_required()
+def get_work_records():
+    try:
+        current_branch = get_jwt_identity()
+
+        EmpBranch = current_app.tables.get('emp_branch')
+        Emp = current_app.tables.get('emp')
+        WorkRecord = current_app.tables.get('work_record')
+
+        # Join the tables to get the desired data
+        query = (
+            db.select(
+                Emp.c.nm.label('name'),
+                WorkRecord.c.work_start_date,
+                WorkRecord.c.work_end_date,
+                WorkRecord.c.wage
+            )
+            .select_from(
+                WorkRecord.join(EmpBranch, WorkRecord.c.emp_branch_no == EmpBranch.c.emp_branch_no)
+                          .join(Emp, EmpBranch.c.emp_no == Emp.c.emp_no)
+            )
+            .where(EmpBranch.c.branch_code == current_branch)
+        )
+
+        records = db.session.execute(query).fetchall()
+
+        result = []
+        for record in records:
+            result.append({
+                "name": record.name,
+                "work_start_date": record.work_start_date.strftime('%Y-%m-%d %H:%M:%S'),
+                "work_end_date": record.work_end_date.strftime('%Y-%m-%d %H:%M:%S') if record.work_end_date else None,
+                "wage": record.wage
+            })
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"msg": str(e)}), 400
