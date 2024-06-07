@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify, current_app, request
 from sqlalchemy.exc import SQLAlchemyError
-
 from app import db
+
 bp_item = Blueprint('item', __name__, url_prefix='/item')
 
 @bp_item.route('/img/upload', methods=['POST'])
 def upload_image():
+    print("이미지 업로드 시작")
     if 'file' not in request.files:
         return jsonify({"error": "파일이 없습니다"}), 400
 

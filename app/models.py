@@ -42,6 +42,7 @@ def setup_manual_map():
     return {
         # 'users': users_table, #for TEST
         'orders': orders,
+        'order_list': order_list,
         'branch_list': branch_list,
         'return_dispose_list': return_dispose_list,
         'sell': sell,
