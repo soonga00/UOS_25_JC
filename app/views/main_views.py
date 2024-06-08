@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from flask import Blueprint, jsonify, current_app, request
 from sqlalchemy import text
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
@@ -87,7 +89,8 @@ def login():
 
     if branch:
         if bcrypt.check_password_hash(branch.branch_pw, branch_pw):
-            access_token = create_access_token(identity=branch.branch_code)
+            access_token = create_access_token(identity=branch.branch_code,
+                                               expires_delta=timedelta(hours=3))
             return jsonify(access_token=access_token), 200
         else:
             print('비밀번호가 잘못되었습니다.')
