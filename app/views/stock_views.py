@@ -86,6 +86,7 @@ def receive():
         return jsonify({'msg': "입고 상품 등록에 실패했습니다. 다시 시도해주세요."}), 500
 
 @bp_stock.route('/error', methods=['POST'])
+@jwt_required()
 def err():
     """
     검품 결과, 오배송
@@ -96,8 +97,39 @@ def err():
 
     """
     data = request.get_json()
-    ReturnDisposeList = current_app.tables.get('return_dispose_list')
-    item_no = get_item_no_from_order_list(data['receive_list'])
+
+    ReceiveItem = current_app.tables.get('receive_item')
+
+    branch_code = get_jwt_identity()
+    curr_date = datetime.now()
+    receive_item_seq = Sequence('receive_item_no_seq')
+    manager_no = get_worker_now(branch_code)  # 현재 근무 직원이 검품 담당자 번호
+    print(f"상품 검품 담당자 (현재 근무 직원): {manager_no}")
+
+    try:
+        # 모든 입고에 대해 입고 목록 생성
+        for item in data['receive_list']:
+            item_no = get_item_no_from_order_list(item['order_list_no'])
+
+            insert_stmt = (insert(ReceiveItem)
+                           .values(receive_item_no=db.session.execute(receive_item_seq.next_value()).scalar(),
+                                   actual_qty=item['actual_qty'],
+                                   receive_date=curr_date,
+                                   order_list_no=item['order_list_no'],
+                                   item_no=item_no,
+                                   check_manager_no=manager_no,
+                                   check_result="1"))  # 오배송으로 기록
+            db.session.execute(insert_stmt)
+            print(f"발주({item['order_list_no']}번)의 {item_no}번 상품 오배송 처리.")
+
+        db.session.commit()
+        return jsonify({'msg': '입고 상품 오배송 처리되었습니다.'})
+
+    except Exception as e:
+        db.session.rollback()
+        print(str(e))
+        return jsonify({'msg': "오배송 처리에 실패했습니다. 다시 시도해주세요."}), 500
+
 
 def get_item_no_from_order_list(order_list_no):
     OrderList = current_app.tables.get('order_list')

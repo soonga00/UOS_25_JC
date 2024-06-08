@@ -3,6 +3,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select, and_, join
 from app import db
 import base64
+from datetime import datetime
+
 
 bp_item = Blueprint('item', __name__, url_prefix='/item')
 
@@ -181,3 +183,26 @@ def get_item_detail():
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
+
+
+@bp_item.route('/info', methods=['POST'])
+def get_item_info():
+    data = request.get_json()
+    item_no = data.get("item_no")
+
+    Item = current_app.tables.get('item')
+    Event = current_app.tables.get('event')
+    ItemEvent = current_app.tables.get('item_event')
+
+    curr_time = datetime.now()
+
+    #  이 상품과 관련있는 이벤트이면서, 현재 이벤트 기간인 이벤트 정보 + 아이템 정보
+    q = (select(Item, Event)
+         .where(curr_time.between(Event.c.start_date, Event.c.end_date))
+        .select_from(Item.join(ItemEvent, Item.c.item_no == ItemEvent.c.item_no).AS('t'), Event.c.event_no == t.event_no)
+                    .join(Event, Event.c.event_no == ItemEvent.c.event_no))
+
+    print(q)
+
+
+
