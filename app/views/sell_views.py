@@ -19,6 +19,7 @@ def create_sell():
     q = insert(Sell).values(branch_code=branch_code, sell_no=sell_no, seller_no=seller_no, buy_abandon_flag="x")
     try:
         db.session.execute(q)
+        db.session.commit()
         print(f"판매 {sell_no}번 생성")
         return jsonify({'sell_no': sell_no})
     except Exception as e:
