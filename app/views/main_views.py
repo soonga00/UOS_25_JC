@@ -1,7 +1,6 @@
 from datetime import timedelta
-
 from flask import Blueprint, jsonify, current_app, request
-from sqlalchemy import text
+from sqlalchemy import text, select
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from app import db, bcrypt
 
@@ -98,4 +97,17 @@ def login():
         print('브랜치 아이디를 찾을 수 없습니다.')
 
     return jsonify({"msg": "로그인 실패"}), 401
+
+
+@bp.route('/life', methods=['GET'])
+@jwt_required()
+def get_lifeservice():
+    branch_code = get_jwt_identity()
+    LifeService = current_app.tables.get('life_service')
+    flag = db.session.execute(select(LifeService).where(LifeService.c.branch_code == branch_code)).fetchone()
+
+    return jsonify({"package": flag.package_flag=="o",
+                    "lottery_ticket": flag.lottery_ticket_flag=="o",
+                    "atm": flag.atm_flag=="o",
+                    "pubprice": flag.pubprice_flag=="o"}), 200 #True, False로 반환
 
