@@ -1,7 +1,7 @@
-from flask import Blueprint, jsonify, current_app
-from sqlalchemy import and_
+from flask import Blueprint, jsonify, current_app, request
+from sqlalchemy import and_, Sequence, insert, func
 from sqlalchemy.exc import SQLAlchemyError
-
+from datetime import datetime
 from app import db
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -11,6 +11,50 @@ bp_order = Blueprint('order', __name__, url_prefix='/order')
 
 # @bp_order.route('/category', methods=['GET'])
 # # def get_categories():
+@bp_order.route('/req', methods=['POST'])
+@jwt_required()
+def req_order():
+    # 요청 포맷
+    # req = { "order_list": [
+    #         {"item_no": 3, "order_qty": 100},
+    #         {"item_no": 2, "order_qty": 250},
+    #         {"item_no": 1, "order_qty": 400},
+    #     ]}
+    data = request.get_json()
+    branch_code = get_jwt_identity()
+
+    Orders = current_app.tables.get('orders')
+    OrderList = current_app.tables.get('order_list')
+
+    try:
+        order_no_seq = Sequence('order_no_seq')
+        order_no = db.session.execute(order_no_seq.next_value()).scalar()
+        insert_stmt = insert(Orders).values(
+            order_no= order_no,
+            order_date=datetime.now(),
+            state="신청",
+            branch_code=branch_code,
+        )
+        db.session.execute(insert_stmt) # 발주 생성
+
+        order_list_no_seq = Sequence('order_list_no_seq')
+        for item in data['order_list']: # 발주 목록 생성
+            insert_stmt = insert(OrderList).values(
+                order_no=order_no,
+                order_list_no=db.session.execute(order_list_no_seq.next_value()).scalar(),
+                order_qty=item['order_qty'],
+                item_no=item['item_no']
+            )
+            db.session.execute(insert_stmt)
+
+        db.session.commit()
+        return jsonify({'msg': f'{branch_code} 지점의 {order_no} 번 발주 신청이 완료되었습니다.'})
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(e)
+        return jsonify({"msg": "발주 신청에 실패했습니다."}), 500
+
 
 
 @bp_order.route('/list', methods=['GET'])

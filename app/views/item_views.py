@@ -149,8 +149,6 @@ def get_item_detail():
     Item = current_app.tables.get('item')
     ItemImg = current_app.tables.get('item_img')
 
-
-
     item_list_q = (select(Item, ItemImg.c.img)
                    .where( and_( Item.c.code_type == code_type, Item.c.code == code))
                    .select_from(join(ItemImg, Item, (ItemImg.c.img_no == Item.c.img_no))))
@@ -168,7 +166,6 @@ def get_item_detail():
                 img_base64 = base64.b64encode(item.img).decode('utf-8')
             else:
                 img_base64 = None
-
             item_data = {
                 "item_nm": item.item_nm,
                 "delv_price": item.deliv_price,
@@ -179,8 +176,8 @@ def get_item_detail():
                 "item_no": item.item_no
             }
             items.append(item_data)
-
         return jsonify({"item_list": items}), 200
+
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
