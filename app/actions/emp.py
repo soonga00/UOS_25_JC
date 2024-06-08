@@ -1,13 +1,16 @@
+from flask import current_app
+from sqlalchemy import and_, select, join
 from app import db
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.ext.automap import automap_base
 
-def setup_automap():
-    Base = automap_base()
-    Base.prepare(db.engine, reflect=True)
-    return Base
+def get_worker_now(branch_code):
+    WorkRecord = current_app.tables.get('work_record')
+    EmpBranch = current_app.tables.get('emp_branch')
 
-Base = setup_automap()
+    # 현재 지점에 대한 work record를 조회 -> 그 중에 end date가 널인 직원.
+    select_q = (select(EmpBranch.c.emp_no)
+                .where(and_(EmpBranch.c.branch_code == branch_code,
+                            WorkRecord.c.work_end_date == None,))
+                .select_from(join(EmpBranch, WorkRecord, EmpBranch.c.emp_branch_no == WorkRecord.c.emp_branch_no)))
+    emp_no = db.session.execute(select_q).fetchone().emp_no
 
-#매핑된 클래스를 사용하여 모델을 정의
-User = Base.classes.users
+    return emp_no

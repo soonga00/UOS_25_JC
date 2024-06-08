@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import insert, and_, Sequence, select, update, join, text
 from app import db
 from datetime import datetime
+from ..actions.emp import get_worker_now
 
 ###   재고관리  api    ###
 bp_stock = Blueprint('stock', __name__, url_prefix='/stock')
@@ -14,7 +15,6 @@ def receive():
     발주 목록들 선택 -> 정상 배송
     -> 입고 목록 생성, 재고 업데이트
     req = {
-        "order_no": 3,
         "receive_list": [
             { "order_list_no": 3, "actual_qty": 500, "exp_date": "2024-09-80 00:00:00" },
             { "order_list_no": 2, "actual_qty": 10, "exp_date": "2024-09-80 00:00:00" },
@@ -25,7 +25,6 @@ def receive():
     data = request.get_json()
 
     ReceiveItem = current_app.tables.get('receive_item')
-    Stock = current_app.tables.get('stock')
 
     branch_code = get_jwt_identity()
     curr_date = datetime.now()
@@ -69,8 +68,8 @@ def receive():
 
             else: # 같은 재고 있으면 개수만 업데이트
                 select_q = text(""" UPDATE stock 
-                SET total_qty =:actual_qty
-                WHERE (stock.branch_code = :branch_code AND stock.item_no = :item_no AND TO_CHAR(stock.exp_date, 'YYYY-MM-DD HH24:MI:SS') = :exp_date)""")
+                                    SET total_qty =:actual_qty
+                                    WHERE (stock.branch_code = :branch_code AND stock.item_no = :item_no AND TO_CHAR(stock.exp_date, 'YYYY-MM-DD HH24:MI:SS') = :exp_date)""")
                 db.session.execute(select_q, {'branch_code': branch_code,
                                               'item_no': item_no,
                                               'exp_date': item['exp_date'],
@@ -86,23 +85,26 @@ def receive():
         print(str(e))
         return jsonify({'msg': "입고 상품 등록에 실패했습니다. 다시 시도해주세요."}), 500
 
+@bp_stock.route('/error', methods=['POST'])
+def err():
+    """
+    검품 결과, 오배송
+    req = {
+        "order_list_no": 3,
+        "actual_qty": 300,
+    }
+
+    """
+    data = request.get_json()
+    ReturnDisposeList = current_app.tables.get('return_dispose_list')
+    item_no = get_item_no_from_order_list(data['receive_list'])
+
 def get_item_no_from_order_list(order_list_no):
     OrderList = current_app.tables.get('order_list')
     q = select(OrderList.c.item_no).where(OrderList.c.order_list_no == order_list_no)
     return db.session.execute(q).fetchone().item_no
 
-def get_worker_now(branch_code):
-    WorkRecord = current_app.tables.get('work_record')
-    EmpBranch = current_app.tables.get('emp_branch')
 
-    # 현재 지점에 대한 work record를 조회 -> 그 중에 end date가 널인 직원.
-    select_q = (select(EmpBranch.c.emp_no)
-                .where(and_(EmpBranch.c.branch_code == branch_code,
-                            WorkRecord.c.work_end_date == None,))
-                .select_from(join(EmpBranch, WorkRecord, EmpBranch.c.emp_branch_no == WorkRecord.c.emp_branch_no)))
-    emp_no = db.session.execute(select_q).fetchone().emp_no
-
-    return emp_no
 
 
 

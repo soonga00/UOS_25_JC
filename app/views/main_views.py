@@ -99,9 +99,3 @@ def login():
 
     return jsonify({"msg": "로그인 실패"}), 401
 
-@bp.route('/protected', methods=['GET'])
-@jwt_required()
-def protected():
-    current_branch = get_jwt_identity()
-    return jsonify(logged_in_ad=current_branch), 200
-
