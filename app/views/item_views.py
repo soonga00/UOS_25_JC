@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, current_app, request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select, and_, join
 from app import db
+import base64
 
 bp_item = Blueprint('item', __name__, url_prefix='/item')
 
@@ -142,63 +143,44 @@ def get_code():
 @bp_item.route('/detail', methods=['POST'])
 def get_item_detail():
     data = request.get_json()
-    code_1 = data.get("code_1") # 대분류 이름
-    code_2 = data.get("code_2") # 중분류 이름
-    code_3 = data.get("code_3") # 소분류 이름
-    print(f"{code_1} > {code_2} > {code_3} 에 대한 상품 리스트 요청 ")
+    code_type = data.get("code_type") # 소분류 코드 종류
+    code = data.get("code") # 소분류 코드
 
-
-    DetailCode = current_app.tables.get('detail_code')
-    Domino = current_app.tables.get('domino')
     Item = current_app.tables.get('item')
     ItemImg = current_app.tables.get('item_img')
 
-    join_cond = (DetailCode.c.code_type == Domino.c.code_type) & (DetailCode.c.code == Domino.c.code)
-
-    domino_join_q = select(Domino, DetailCode).select_from(join(Domino, DetailCode, join_cond))
-    domino_join = db.session.execute(domino_join_q).fetchall()
-    print(domino_join)
-
-    join_table = join(Domino, DetailCode, join_cond)
-    # 대분류 이름을 통해 대분류 코드 get
-    class1_q = (select(Domino)
-                .where(and_(DetailCode.c.code_nm == code_1, Domino.c.parent_code_type == None))
-                .select_from(join_table))
-    class1 = db.session.execute(class1_q).fetchone() # 대분류 상세코드
 
 
-    class2_q = (select(Domino)
-                .where( and_(DetailCode.c.code_nm == code_2,
-                             Domino.c.parent_code_type == class1.code_type,
-                             Domino.c.parent_code == class1.code))
-                .select_from(join_table))
-    class2 = db.session.execute(class2_q).fetchone() # 중분류 상세코드
-
-    class3_q = (select(DetailCode)
-                .where(and_ (DetailCode.c.code_nm == code_3,
-                             Domino.c.parent_code_type == class2.code_type,
-                             Domino.c.parent_code == class2.code,))
-                .select_from(join_table))
-    class3 = db.session.execute(class3_q).fetchone() #소분류 상세코드
-
-    join_cond2 = (ItemImg.c.img_no == Item.c.img_no)
-    item_list_q = (select(Item, ItemImg.c.img).where( and_( Item.c.code_type == class3.code_type, Item.c.code == class3.code))
+    item_list_q = (select(Item, ItemImg.c.img)
+                   .where( and_( Item.c.code_type == code_type, Item.c.code == code))
                    .select_from(join(ItemImg, Item, (ItemImg.c.img_no == Item.c.img_no))))
-    item_list = db.session.execute(item_list_q).fetchall()
-    print(item_list[0])
+    try:
+        item_list = db.session.execute(item_list_q).fetchall()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(e)
+        return jsonify({"error": str(e)}), 500
 
-    items = [{"item_nm": item.item_nm,
-              "delv_price": item.deliv_price,
-              "consumer_price": item.consumer_price,
-              #"img": item.img,
-              "order_available_flag": item.order_available_flag,
-              "deliv_comp_nm": item.deliv_comp_nm,
-              "item_no": item.item_no} for item in item_list]
+    items = []
+    try:
+        for item in item_list:
+            if item.img is not None:
+                img_base64 = base64.b64encode(item.img).decode('utf-8')
+            else:
+                img_base64 = None
 
-    return jsonify(items), 200
+            item_data = {
+                "item_nm": item.item_nm,
+                "delv_price": item.deliv_price,
+                "consumer_price": item.consumer_price,
+                "img": img_base64,
+                "order_available_flag": item.order_available_flag,
+                "deliv_comp_nm": item.deliv_comp_nm,
+                "item_no": item.item_no
+            }
+            items.append(item_data)
 
-
-
-
-
-
+        return jsonify({"item_list": items}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
