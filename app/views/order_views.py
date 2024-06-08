@@ -75,6 +75,7 @@ def get_order_list():
         for detail in order_details:
             item = get_item_by_item_no(detail.item_no)
             item_dict = {
+                'item_no': detail.item_no,
                 'item_nm': item.item_nm,
                 'order_qty': detail.order_qty,
                 'deliv_price': item.deliv_price
