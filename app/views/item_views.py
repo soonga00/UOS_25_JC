@@ -101,7 +101,7 @@ def get_code():
             else:
                 parent_nm = parent[(parent_code_type, parent_code)]
 
-            child_q = (select(DetailCode.c.code_nm)
+            child_q = (select(DetailCode)
                        .select_from(DetailCode)
                        .where(
                             and_(
@@ -109,15 +109,25 @@ def get_code():
                                 DetailCode.c.code == child.code)
                         ))
             try:
-                child_nm = db.session.execute(child_q).fetchone().code_nm
+                child = db.session.execute(child_q).fetchone()
             except SQLAlchemyError as e:
                 db.session.rollback()
                 return jsonify({"error": str(e)}), 500
 
-            if parent_nm in c:
-                c[parent_nm].append(child_nm)
-            else:
-                c[parent_nm] = [child_nm]
+            if parent_code_type in ['CD-001', 'CD-101']: # 대분류
+                if parent_nm in c:
+                    c[parent_nm].append(child.code_nm)
+                else:
+                    c[parent_nm] = [child.code_nm]
+            else: # 중분류
+                if parent_nm in c:
+                    c[parent_nm].append({"code_nm": child.code_nm,
+                                         "code_type": child.code_type,
+                                         "code": child.code})
+                else:
+                    c[parent_nm] = [{"code_nm": child.code_nm,
+                                     "code_type": child.code_type,
+                                     "code": child.code}]
 
         if parent_code_type in ['CD-001', 'CD-101']: # 대분류
             categories.update(c)
