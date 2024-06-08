@@ -4,9 +4,7 @@ from app import db
 metadata = MetaData()
 
 # 수동으로 users 테이블 매핑
-# users_table = Table('users', metadata, autoload_with=db.engine) # for TEST
 
-## stock 빼고 잘 매핑됨
 orders = Table('orders', metadata, autoload_with=db.engine)
 order_list = Table('order_list', metadata, autoload_with=db.engine)
 branch_list = Table('branch_list', metadata, autoload_with=db.engine)
@@ -15,7 +13,7 @@ return_dispose_list = Table('return_dispose_list', metadata, autoload_with=db.en
 sell = Table('sell', metadata, autoload_with=db.engine)
 sell_list = Table('sell_list', metadata, autoload_with=db.engine)
 receive_item = Table('receive_item', metadata, autoload_with=db.engine)
-#stock = Table('stock ', metadata, autoload_with=db.engine)
+stock = Table('stock', metadata, autoload_with=db.engine)
 loss = Table('loss', metadata, autoload_with=db.engine)
 
 code_type = Table('code_type', metadata, autoload_with=db.engine)
@@ -40,7 +38,6 @@ item_img = Table('item_img', metadata, autoload_with=db.engine)
 def setup_manual_map():
     metadata.create_all(db.engine)
     return {
-        # 'users': users_table, #for TEST
         'orders': orders,
         'order_list': order_list,
         'branch_list': branch_list,
@@ -48,7 +45,7 @@ def setup_manual_map():
         'sell': sell,
         'sell_list': sell_list,
         'receive_item': receive_item,
-        #'stock': stock,
+        'stock': stock,
         'loss': loss,
         'code_type': code_type,
         'detail_code': detail_code,

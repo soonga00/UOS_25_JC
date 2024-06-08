@@ -14,12 +14,17 @@ bp_order = Blueprint('order', __name__, url_prefix='/order')
 @bp_order.route('/req', methods=['POST'])
 @jwt_required()
 def req_order():
-    # 요청 포맷
-    # req = { "order_list": [
-    #         {"item_no": 3, "order_qty": 100},
-    #         {"item_no": 2, "order_qty": 250},
-    #         {"item_no": 1, "order_qty": 400},
-    #     ]}
+    """
+    발주 신청
+    요청 포맷
+    req = { "order_list": [
+             {"item_no": 3, "order_qty": 100},
+             {"item_no": 2, "order_qty": 250},
+             {"item_no": 1, "order_qty": 400},
+            ]}
+    :return:
+    """
+
     data = request.get_json()
     branch_code = get_jwt_identity()
 
@@ -29,6 +34,7 @@ def req_order():
     try:
         order_no_seq = Sequence('order_no_seq')
         order_no = db.session.execute(order_no_seq.next_value()).scalar()
+
         insert_stmt = insert(Orders).values(
             order_no= order_no,
             order_date=datetime.now(),
