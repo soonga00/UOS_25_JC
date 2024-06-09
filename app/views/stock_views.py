@@ -207,13 +207,14 @@ def get_stock():
 
     return jsonify(res), 200
 
+
 @bp_stock.route('/update', methods=['POST'])
 @jwt_required()
 def update_stock():
     """
     req = {
         "item_no": 1,
-        "exp_date": "2024-09-80 00:00:00",
+        "exp_date": "Sun, 29 Sep 2024 00:00:00 GMT",
         "arrangement_qty": 300,
     }
     :return:
@@ -221,10 +222,13 @@ def update_stock():
     data = request.get_json()
     branch_code = get_jwt_identity()
     Stock = current_app.tables.get('stock')
-    exp_date = datetime.strptime(data['exp_date'], '%Y-%m-%d %H:%M:%S')
+
+    # Correcting the format of the exp_date
+    exp_date = datetime.strptime(data['exp_date'], '%a, %d %b %Y %H:%M:%S %Z')
+
     q = (update(Stock).where(and_(Stock.c.branch_code == branch_code,
-                             Stock.c.item_no == data['item_no'],
-                             Stock.c.exp_date == exp_date))
+                                  Stock.c.item_no == data['item_no'],
+                                  Stock.c.exp_date == exp_date))
          .values(arrangement_qty=data['arrangement_qty']))
     try:
         db.session.execute(q)
@@ -237,20 +241,23 @@ def update_stock():
         return jsonify({"msg": "재고 수정이 제대로 이루지지 않았습니다. 다시 시도해 주세요."})
 
 
+# Flask 뷰
 @bp_stock.route('/delete', methods=['POST'])
 @jwt_required()
 def delete_stock():
     """
     req = {
         "item_no": 1,
-        "exp_date": "2024-09-80 00:00:00"
+        "exp_date": "2024-09-29 00:00:00"
     }
     :return:
     """
     data = request.get_json()
     Stock = current_app.tables.get('stock')
     branch_code = get_jwt_identity()
-    exp_date = datetime.strptime(data['exp_date'], '%Y-%m-%d %H:%M:%S')
+
+    # GMT 형식의 날짜를 파싱하여 datetime 객체로 변환
+    exp_date = datetime.strptime(data['exp_date'], '%a, %d %b %Y %H:%M:%S %Z')
 
     q = delete(Stock).where(and_(Stock.c.branch_code == branch_code,
                                  Stock.c.item_no == data['item_no'],
@@ -266,7 +273,7 @@ def delete_stock():
 
     # 폐기 생성
     Return = current_app.tables.get('return_dispose_list')
-    return_list_no_seq = Sequence('retrun_list_no_seq')
+    return_list_no_seq = Sequence('return_list_no_seq')
     return_no = db.session.execute(return_list_no_seq.next_value()).scalar()
     curr_date = datetime.now()
     q = insert(Return).values(return_list_no=return_no,
@@ -284,6 +291,7 @@ def delete_stock():
         db.session.rollback()
         print(str(e))
         return jsonify({"msg": "재고 삭제가 이루어지지 않았습니다. 다시 시도해 주세요."}), 400
+
 
 
 def get_item_no_from_order_list(order_list_no):
