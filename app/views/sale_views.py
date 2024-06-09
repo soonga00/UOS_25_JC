@@ -1,6 +1,8 @@
-from flask import Blueprint, jsonify, current_app
+from datetime import datetime
+
+from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import select, func
+from sqlalchemy import select, func, Sequence, insert
 from sqlalchemy.orm import aliased
 from app import db
 
@@ -62,53 +64,144 @@ def get_sales_status():
 
 
 
-# @bp_sales.route('/daily-settlement', methods=['POST'])
-# @jwt_required()
-# def daily_settlement():
-#     branch_code = get_jwt_identity()
-#     Sales = current_app.tables.get('sales')
-#     OrderList = current_app.tables.get('order_list')
-#     Orders = current_app.tables.get('orders')
-#     Branch = current_app.tables.get('branch')
-#
-#     try:
-#         # Calculate sales amount, margin, and other data for the day
-#         sales_data = db.session.execute(
-#             select([
-#                 func.sum(OrderList.c.order_qty * (Item.c.consumer_price - Item.c.deliv_price)).label('total_margin'),
-#                 func.sum(OrderList.c.order_qty * Item.c.consumer_price).label('total_amount')
-#             ])
-#             .select_from(OrderList.join(Item, OrderList.c.item_no == Item.c.item_no))
-#             .where(OrderList.c.order_date == func.current_date())
-#         ).fetchone()
-#
-#         total_margin = sales_data.total_margin
-#         total_amount = sales_data.total_amount
-#
-#         manager_no = db.session.execute(
-#             select(Branch.c.manager_no).where(Branch.c.branch_code == branch_code)
-#         ).fetchone().manager_no
-#
-#         pay_rate = 0.05  # Example value, replace with actual logic if necessary
-#
-#         sales_no_seq = Sequence('sales_no_seq')
-#         sales_no = db.session.execute(sales_no_seq.next_value()).scalar()
-#
-#         insert_stmt = insert(Sales).values(
-#             sales_no=sales_no,
-#             date=datetime.now(),
-#             amount=total_amount,
-#             margin=total_margin,
-#             manager_no=manager_no,
-#             branch_code=branch_code,
-#             pay_rate=pay_rate
-#         )
-#         db.session.execute(insert_stmt)
-#         db.session.commit()
-#
-#         return jsonify({"msg": "일일 정산이 완료되었습니다."}), 200
-#
-#     except Exception as e:
-#         db.session.rollback()
-#         print(e)
-#         return jsonify({"msg": "일일 정산에 실패했습니다."}), 500
+@bp_sale.route('/daily-settlement', methods=['POST'])
+@jwt_required()
+def daily_settlement():
+    branch_code = get_jwt_identity()
+    Sales = current_app.tables.get('sales')
+    OrderList = current_app.tables.get('order_list')
+    Orders = current_app.tables.get('orders')
+    BranchList = current_app.tables.get('branch_list')
+    Item = current_app.tables.get('item')  # 'tables'로 수정
+
+    try:
+        # Calculate sales amount, margin, and other data for the day
+        sales_data = db.session.execute(
+            select(
+                func.sum(OrderList.c.order_qty * (Item.c.consumer_price - Item.c.deliv_price)).label('total_margin'),
+                func.sum(OrderList.c.order_qty * Item.c.consumer_price).label('total_amount')
+            )
+            .select_from(
+                Orders
+                .join(OrderList, Orders.c.order_no == OrderList.c.order_no)
+                .join(Item, OrderList.c.item_no == Item.c.item_no)
+            )
+            .where(Orders.c.order_date == func.current_date())
+        ).fetchone()
+
+        if not sales_data.total_margin and not sales_data.total_amount:
+            return jsonify({"msg": "일일 정산할 판매가 없습니다."}), 400
+
+        total_margin = sales_data.total_margin if sales_data.total_margin else 0
+        total_amount = sales_data.total_amount if sales_data.total_amount else 0
+
+        manager_no = db.session.execute(
+            select(BranchList.c.manager_no).where(BranchList.c.branch_code == branch_code)
+        ).fetchone().manager_no
+
+        # Check if today's settlement already exists
+        existing_settlement = db.session.execute(
+            select(Sales).where(
+                Sales.c.branch_code == branch_code,
+                func.date(Sales.c.sales_date) == func.current_date()
+            )
+        ).fetchone()
+
+        if existing_settlement:
+            # Update existing settlement
+            update_stmt = (
+                Sales.update()
+                .where(Sales.c.sales_no == existing_settlement.sales_no)
+                .values(
+                    sales_amt=total_amount,
+                    sales_margin=total_margin,
+                )
+            )
+            db.session.execute(update_stmt)
+            db.session.commit()
+            return jsonify({"msg": "일일 정산이 업데이트되었습니다."}), 201
+        else:
+            # Insert new settlement
+            sales_no_seq = Sequence('sales_no_seq')
+            sales_no = db.session.execute(sales_no_seq.next_value()).scalar()
+
+            insert_stmt = insert(Sales).values(
+                sales_no=sales_no,
+                sales_date=datetime.now(),
+                sales_amt=total_amount,
+                sales_margin=total_margin,
+                branch_code=branch_code
+            )
+            db.session.execute(insert_stmt)
+            db.session.commit()
+
+            return jsonify({"msg": "일일 정산이 완료되었습니다."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(e)
+        return jsonify({"msg": "일일 정산에 실패했습니다."}), 500
+
+
+@bp_sale.route('/current-cash', methods=['GET'])
+@jwt_required()
+def get_current_cash_register():
+    branch_code = get_jwt_identity()
+    Cash = current_app.tables.get('cash')
+
+    try:
+        current_cash = db.session.execute(
+            select(Cash.c.total_amt)
+            .where(Cash.c.branch_code == branch_code)
+        ).scalar()
+
+        if current_cash is None:
+            # If current_cash is None, insert 0 total_amt for this branch
+            insert_stmt = insert(Cash).values(
+                total_amt=0,
+                branch_code=branch_code,
+            )
+            db.session.execute(insert_stmt)
+            db.session.commit()
+            current_cash = 0
+
+        return jsonify({"current_cash_register": current_cash}), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"msg": "현금 시제를 조회하는 데 실패했습니다."}), 500
+
+
+@bp_sale.route('/update', methods=['POST'])
+@jwt_required()
+def update_cash_register():
+    branch_code = get_jwt_identity()
+    now_cash_amt = request.json.get('now_cash_amt')
+    Cash = current_app.tables.get('cash')
+
+    if now_cash_amt is None:
+        return jsonify({"msg": "새로운 현금 시제를 입력해 주세요."}), 400
+
+    try:
+        # Check if the cash register for the branch already exists
+        current_cash = db.session.execute(
+            select(Cash.c.total_amt)
+            .where(Cash.c.branch_code == branch_code)
+        ).scalar()
+
+        update_stmt = (
+            Cash.update()
+            .where(Cash.c.branch_code == branch_code)
+            .values(
+                total_amt=now_cash_amt
+            )
+        )
+        db.session.execute(update_stmt)
+
+        db.session.commit()
+        return jsonify({"msg": "현금 시제가 성공적으로 업데이트되었습니다."}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(e)
+        return jsonify({"msg": "현금 시제를 업데이트하는 데 실패했습니다."}), 500
