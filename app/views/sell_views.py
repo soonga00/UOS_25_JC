@@ -106,8 +106,6 @@ def get_sell_list():
     return jsonify({"sell_list": t}), 200
 
 
-
-
 @bp_sell.route('/<int:item_no>', methods=['GET'])
 def get_item_info_for_sell(item_no:int):
     Item = current_app.tables.get('item')
