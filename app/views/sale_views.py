@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import select, func, Sequence, insert
+from sqlalchemy import select, func, Sequence, insert, and_
 from sqlalchemy.orm import aliased
 from app import db
 
@@ -63,33 +63,36 @@ def get_sales_status():
         return jsonify({"msg": "매출 데이터를 가져오는 데 실패했습니다."}), 500
 
 
-
 @bp_sale.route('/daily-settlement', methods=['POST'])
 @jwt_required()
 def daily_settlement():
     branch_code = get_jwt_identity()
     Sales = current_app.tables.get('sales')
-    OrderList = current_app.tables.get('order_list')
-    Orders = current_app.tables.get('orders')
+    SellList = current_app.tables.get('sell_list')
+    Sell = current_app.tables.get('sell')
     BranchList = current_app.tables.get('branch_list')
-    Item = current_app.tables.get('item')  # 'tables'로 수정
+    Item = current_app.tables.get('item')
 
     try:
         # Calculate sales amount, margin, and other data for the day
         sales_data = db.session.execute(
             select(
-                func.sum(OrderList.c.order_qty * (Item.c.consumer_price - Item.c.deliv_price)).label('total_margin'),
-                func.sum(OrderList.c.order_qty * Item.c.consumer_price).label('total_amount')
+                func.sum(SellList.c.sell_qty * (Item.c.consumer_price - Item.c.deliv_price)).label('total_margin'),
+                func.sum(SellList.c.sell_qty * Item.c.consumer_price).label('total_amount')
             )
             .select_from(
-                Orders
-                .join(OrderList, Orders.c.order_no == OrderList.c.order_no)
-                .join(Item, OrderList.c.item_no == Item.c.item_no)
+                SellList
+                .join(Sell, and_(
+                    Sell.c.sell_no == SellList.c.sell_no,
+                    Sell.c.branch_code == branch_code,
+                    func.trunc(Sell.c.sell_date) == func.trunc(func.current_date()),
+                    Sell.c.buy_abandon_flag == 'x'
+                ))
+                .join(Item, SellList.c.item_no == Item.c.item_no)
             )
-            .where(Orders.c.order_date == func.current_date())
-        ).fetchone()
+        ).one_or_none()
 
-        if not sales_data.total_margin and not sales_data.total_amount:
+        if not sales_data or not sales_data.total_margin and not sales_data.total_amount:
             return jsonify({"msg": "일일 정산할 판매가 없습니다."}), 400
 
         total_margin = sales_data.total_margin if sales_data.total_margin else 0
@@ -97,15 +100,15 @@ def daily_settlement():
 
         manager_no = db.session.execute(
             select(BranchList.c.manager_no).where(BranchList.c.branch_code == branch_code)
-        ).fetchone().manager_no
+        ).one_or_none().manager_no
 
         # Check if today's settlement already exists
         existing_settlement = db.session.execute(
             select(Sales).where(
                 Sales.c.branch_code == branch_code,
-                func.date(Sales.c.sales_date) == func.current_date()
+                func.trunc(Sales.c.sales_date) == func.trunc(func.current_date())
             )
-        ).fetchone()
+        ).one_or_none()
 
         if existing_settlement:
             # Update existing settlement
@@ -114,7 +117,7 @@ def daily_settlement():
                 .where(Sales.c.sales_no == existing_settlement.sales_no)
                 .values(
                     sales_amt=total_amount,
-                    sales_margin=total_margin,
+                    sell_margin=total_margin,
                 )
             )
             db.session.execute(update_stmt)
@@ -129,7 +132,7 @@ def daily_settlement():
                 sales_no=sales_no,
                 sales_date=datetime.now(),
                 sales_amt=total_amount,
-                sales_margin=total_margin,
+                sell_margin=total_margin,
                 branch_code=branch_code
             )
             db.session.execute(insert_stmt)
