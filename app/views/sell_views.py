@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import insert, and_, Sequence, select, update, func
-from app import db
+from sqlalchemy import insert, and_, Sequence, select, update, func, desc, join
 from ..actions.emp import get_worker_no_now
+from app import db
 
 ###   판매  api    ###
 bp_sell = Blueprint('sell', __name__, url_prefix='/sell')
@@ -48,8 +48,62 @@ def create_sell():
 
 
 
-# @bp_sell.route('/list, methods=['GET('])
-# @jwt_required()
+@bp_sell.route('/list', methods=['GET'])
+@jwt_required()
+def get_sell_list():
+    """
+    판매 목록 - 최신순으로 반환.
+
+    :return:
+    """
+    branch_code = get_jwt_identity()
+    Sell = current_app.tables.get('sell')
+    SellList = current_app.tables.get('sell_list')
+    Emp = current_app.tables.get('emp')
+
+    sell_q = (select(Sell, Emp)
+              .where(and_(Sell.c.branch_code == branch_code,
+                          Sell.c.buy_abandon_flag == "x"))
+              .order_by(desc(Sell.c.sell_date))
+              .select_from(join(Sell, Emp, Sell.c.seller_no == Emp.c.emp_no)))
+    try:
+        sells = db.session.execute(sell_q).fetchall()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        return jsonify({"msg": "판매 조회에 실패했습니다. 다시 시도해 주세요."})
+
+    t = [] # 판매 담을 배열
+    for sell in sells:
+        t_list = {
+            "sell_no" : sell.sell_no,
+            "seller_no": sell.seller_no,
+            "seller_nm": sell.emp_nm,
+            "consumer_no": sell.consumer_no,
+            "sell_date": sell.sell_date,
+            "pay_amt": sell.pay_amt,
+            "pay_method": sell.pay_method
+        }
+        s = [] # 판매 목록들 담을 배열
+        q = select(SellList).where(SellList.c.sell_no == sell.sell_no)
+        try:
+            selllist_list = db.session.execute(q).fetchall()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(e)
+            return jsonify({"msg": "판매 목록 조회에 실패했습니다. 다시 시도해 주세요."})
+        for selllist in selllist_list:
+            s.append({
+                "sell_list_no": selllist.sell_list_no,
+                "item_no": selllist.item_no,
+                "sell_qty": selllist.sell_qty,
+                "item_price": selllist.item_price,
+            })
+        t_list["sell_list"] = s
+        t.append(t_list)
+
+    print(f"{branch_code}번 지점 판매 목록 조회")
+    return jsonify({"sell_list": t}), 200
 
 
 
