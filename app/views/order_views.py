@@ -9,8 +9,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 bp_order = Blueprint('order', __name__, url_prefix='/order')
 
 
-# @bp_order.route('/category', methods=['GET'])
-# # def get_categories():
 @bp_order.route('/req', methods=['POST'])
 @jwt_required()
 def req_order():
@@ -80,11 +78,14 @@ def get_order_list():
         items = []
         for detail in order_details:
             item = get_item_by_item_no(detail.item_no)
+            received = check_received(detail.order_list_no)
             item_dict = {
+                'order_list_no': detail.order_list_no,
                 'item_no': detail.item_no,
                 'item_nm': item.item_nm,
                 'order_qty': detail.order_qty,
-                'deliv_price': item.deliv_price
+                'deliv_price': item.deliv_price,
+                'received': received
             }
             items.append(item_dict)
         order_dict = {
@@ -96,24 +97,26 @@ def get_order_list():
 
     return jsonify(order_list), 200
 
+def check_received(order_list_no):
+    receive_item = current_app.tables['receive_item']
+    query = db.select(receive_item).where(receive_item.c.order_list_no == order_list_no)
+    result = db.session.execute(query).fetchone()
+    return result is not None
 
 def get_item_by_item_no(item_no):
     item = current_app.tables['item']
     query = db.select(item).where(item.c.item_no == item_no)
     return db.session.execute(query).fetchone()
 
-
 def get_order_detail_by_order_no(order_no):
     order_list = current_app.tables['order_list']
     query = db.select(order_list).where(order_list.c.order_no == order_no)
     return db.session.execute(query).fetchall()
 
-
 def get_orders_by_branch_code(branch_code):
     order = current_app.tables['orders']
     query = db.select(order).where(order.c.branch_code == branch_code)
     return db.session.execute(query).fetchall()
-
 
 def get_branch_by_branch_code(branch_code):
     # BranchList 테이블 참조

@@ -33,6 +33,19 @@ def receive():
     print(f"상품 검품 담당자 (현재 근무 직원): {manager_no}")
 
     try:
+        # 이미 입고 완료된 발주 목록 확인
+        already_received = []
+        for item in data['receive_list']:
+            existing_receive = db.session.execute(
+                select(ReceiveItem).where(ReceiveItem.c.order_list_no == item['order_list_no'])
+            ).fetchone()
+
+            if existing_receive:
+                already_received.append(item['order_list_no'])
+
+        if already_received:
+            return jsonify({'msg': f"발주 목록 {already_received}은(는) 이미 입고 완료되었습니다."}), 400
+
         # 모든 입고에 대해 입고 목록 생성
         for item in data['receive_list']:
             item_no = get_item_no_from_order_list(item['order_list_no'])
@@ -84,6 +97,7 @@ def receive():
         db.session.rollback()
         print(str(e))
         return jsonify({'msg': "입고 상품 등록에 실패했습니다. 다시 시도해주세요."}), 500
+
 
 @bp_stock.route('/error', methods=['POST'])
 @jwt_required()
