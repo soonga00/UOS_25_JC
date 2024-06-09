@@ -1,6 +1,10 @@
+from typing import List, Dict, Union, Any
+
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import insert, and_, Sequence, select, update, join, text, delete
+from sqlalchemy.exc import SQLAlchemyError
+import base64
 from app import db
 from datetime import datetime
 from ..actions.emp import get_worker_no_now
@@ -146,28 +150,51 @@ def err():
 
 
 @bp_stock.route('/get', methods=['GET'])
-@jwt_required()
+#@jwt_required()
 def get_stock():
-    branch_code = get_jwt_identity()
-    Stock = current_app.tables.get('stock')
-    Item = current_app.tables.get('item')
-    q = (select(Stock, Item.c.item_nm).where(Stock.c.branch_code == branch_code)
-         .select_from(join(Item, Stock, Stock.c.item_no == Item.c.item_no)))
-    stock_list = db.session.execute(q).fetchall()
+    #branch_code = get_jwt_identity()
+    branch_code = 1
+    try:
+        categories, sub_categories = get_item_categories()
+    except Exception as e:
+        return jsonify({"msg": "재고 조회에 실패했습니다. 다시 시도해주세요."})
 
-    res = []
-    for stock in stock_list:
-        s = {
-            "item_no": stock.item_no,
-            "exp_date": stock.exp_date,
-            "total_qty": stock.total_qty,
-            "arrangement_qty": stock.arrangement_qty,
-            "item_nm": stock.item_nm
-        }
-        res.append(s)
+    class2 = sub_categories.keys()
+    for key in class2: # 중분류들
+        class3 = sub_categories[key] # 소분류들
+        for codes in class3: #소분류 코드들
+            code = codes['code']
+            code_type = codes['code_type']
+            try:
+                stocks = get_stock_by_code(branch_code, code_type, code)
+            except Exception as e:
+                return jsonify({"msg": "재고 조회에 실패했습니다. 다시 시도해주세요."})
 
-    return jsonify({"stock_list": res})
+            item_list = []
+            for stock in stocks: # 각 상세코드별로 아이템 리스트 추가
+                if stock.img is not None:
+                    img_base64 = base64.b64encode(stock.img).decode('utf-8')
+                    is_img = True
+                else:
+                    img_base64 = None
+                    is_img = False
+                item_list.append({
+                    "item_no": stock.item_no,
+                    "item_nm": stock.item_nm,
+                    "exp_date": stock.exp_date,
+                    "total_qty": stock.total_qty,
+                    "arrangement_qty": stock.arrangement_qty,
+                    "img": img_base64,
+                    "is_img": is_img # 이미지 있는지 여부
+                })
+            codes['item_list'] = item_list
 
+    res = {
+        "categories": categories,
+        "sub_categories": sub_categories
+    }
+
+    return jsonify(res), 200
 
 @bp_stock.route('/update', methods=['POST'])
 @jwt_required()
@@ -254,7 +281,114 @@ def get_item_no_from_order_list(order_list_no):
     return db.session.execute(q).fetchone().item_no
 
 
+def get_item_categories():
+    # 도미노 -> parent_code_type parent_code 에 따라 group
+    # 여기서 parent_code_type = 대분류인 애들 / 중분류인 애들 분류
+    # 상세 코드 -> 조회된 모든 노미노의 code_nm 조회
 
+    CodeType = current_app.tables.get('code_type')
+    DetailCode = current_app.tables.get('detail_code')
+    Domino = current_app.tables.get('domino')
 
+    try:
+        codetype_q = db.select(CodeType.c.code_type).select_from(CodeType)
+        code_type_list = db.session.execute(codetype_q).fetchall()  # 모든 코드 종류 저장한 배열
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    item_group = []  # 대분류끼리, 중분류끼리
+    for i in range(len(code_type_list)):
+        query = (select(Domino)
+                 .select_from(Domino)
+                 .where(Domino.c.parent_code_type == code_type_list[i].code_type))
+        try:
+            group = db.session.execute(query).fetchall()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+        item_group.append(group)
+
+    categories = {}  # 대분류: 중분류
+    sub_categories = {}  # 중분류: 소분류
+    parent = {}
+
+    for group in item_group:
+        if not group:
+            continue
+        c = {}
+        for child in group:
+            parent_code_type = child.parent_code_type
+            parent_code = child.parent_code
+
+            if not (parent_code_type, parent_code) in parent:
+                parent_q = (select(DetailCode.c.code_nm)
+                .select_from(DetailCode)
+                .where(
+                    and_(
+                        DetailCode.c.code_type == parent_code_type,
+                        DetailCode.c.code == parent_code)
+                )
+                )
+                try:
+                    parent_nm = db.session.execute(parent_q).fetchone().code_nm
+                except SQLAlchemyError as e:
+                    db.session.rollback()
+                    return jsonify({"error": str(e)}), 500
+
+                parent[(parent_code_type, parent_code)] = parent_nm
+            else:
+                parent_nm = parent[(parent_code_type, parent_code)]
+
+            child_q = (select(DetailCode)
+            .select_from(DetailCode)
+            .where(
+                and_(
+                    DetailCode.c.code_type == child.code_type,
+                    DetailCode.c.code == child.code)
+            ))
+            try:
+                child = db.session.execute(child_q).fetchone()
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                return jsonify({"error": str(e)}), 500
+
+            if parent_code_type in ['CD-001', 'CD-101']:  # 대분류
+                if parent_nm in c:
+                    c[parent_nm].append(child.code_nm)
+                else:
+                    c[parent_nm] = [child.code_nm]
+            else:  # 중분류
+                if parent_nm in c:
+                    c[parent_nm].append({"code_nm": child.code_nm,
+                                         "code_type": child.code_type,
+                                         "code": child.code})
+                else:
+                    c[parent_nm] = [{"code_nm": child.code_nm,
+                                     "code_type": child.code_type,
+                                     "code": child.code}]
+
+        if parent_code_type in ['CD-001', 'CD-101']:  # 대분류
+            categories.update(c)
+        else:
+            sub_categories.update(c)
+
+    return categories, sub_categories
+
+def get_stock_by_code(branch_code, code_type, code):
+    Stock = current_app.tables.get('stock')
+    Item = current_app.tables.get('item')
+    ItemImg = current_app.tables.get('item_img')
+    q = (select(Stock, Item, ItemImg.c.img)
+         .where(and_(Item.c.code_type ==code_type,
+                     Item.c.code == code))
+         .select_from(join(Stock, Item,
+                           (Stock.c.branch_code == branch_code)
+                           & (Stock.c.item_no == Item.c.item_no))
+                      .join(ItemImg, Item.c.img_no == ItemImg.c.img_no)))
+
+    return db.session.execute(q).fetchall()
 
 
