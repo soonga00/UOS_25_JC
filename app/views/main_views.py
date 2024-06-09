@@ -104,10 +104,15 @@ def login():
 def get_lifeservice():
     branch_code = get_jwt_identity()
     LifeService = current_app.tables.get('life_service')
+    print(branch_code)
     flag = db.session.execute(select(LifeService).where(LifeService.c.branch_code == branch_code)).fetchone()
 
-    return jsonify({"package": flag.package_flag=="o",
-                    "lottery_ticket": flag.lottery_ticket_flag=="o",
-                    "atm": flag.atm_flag=="o",
-                    "pubprice": flag.pubprice_flag=="o"}), 200 #True, False로 반환
+    if not flag:
+        return jsonify({"msg": "해당 지점의 생활 서비스 정보가 없습니다."}), 404
+
+    return jsonify({"package": flag.package_flag == "o",
+                    "lottery_ticket": flag.lottery_ticket_flag == "o",
+                    "atm": flag.atm_flag == "o",
+                    "pubprice": flag.pubprice_flag == "o"}), 200  # True, False로 반환
+
 
