@@ -30,12 +30,13 @@ def create_sell():
 
 
 
-@bp_sell.route('/list, methods=['GET'])
-@jwt_required()
+# @bp_sell.route('/list, methods=['GET('])
+# @jwt_required()
 
 
 
-@bp_sell.route('/<int:item_no>', methods=['GET'])
+
+@bp_sell.route('/<int:item_no>', methods=['GET']))
 def get_item_info_for_sell(item_no:int):
     Item = current_app.tables.get('item')
     Event = current_app.tables.get('event')
