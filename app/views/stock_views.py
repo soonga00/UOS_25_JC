@@ -94,6 +94,11 @@ def receive():
                                               })
                 print(f"{item_no}번 상품 재고: {item['actual_qty']} 개 추가. 총 {stock.total_qty + item['actual_qty']} 개")
 
+        order_no = get_order_no_from_list(data['receive_list'][0]['order_list_no'])
+        state = get_order_state(order_no)
+        update_order_state(order_no, state)
+        print(f"{order_no}번 발주 진행 상태 업데이트: {state}")
+
         db.session.commit()
         return jsonify({'msg': '입고 요청이 정상적으로 처리되었습니다.'})
 
@@ -109,8 +114,10 @@ def err():
     """
     검품 결과, 오배송
     req = {
-        "order_list_no": 3,
-        "actual_qty": 300,
+        "receive_list": [
+            { "order_list_no": 3, "actual_qty": 500, "exp_date": "2024-09-80 00:00:00" },
+            { "order_list_no": 2, "actual_qty": 10, "exp_date": "2024-09-80 00:00:00" },
+        ]
     }
 
     """
@@ -139,6 +146,11 @@ def err():
                                    check_result="1"))  # 오배송으로 기록
             db.session.execute(insert_stmt)
             print(f"발주({item['order_list_no']}번)의 {item_no}번 상품 오배송 처리.")
+
+        order_no = get_order_no_from_list(data['receive_list'][0]['order_list_no'])
+        state = get_order_state(order_no)
+        update_order_state(order_no, state)
+        print(f"{order_no}번 발주 진행 상태 업데이트: {state}")
 
         db.session.commit()
         return jsonify({'msg': '입고 상품 오배송 처리되었습니다.'})
@@ -390,4 +402,33 @@ def get_stock_by_code(branch_code, code_type, code):
 
     return db.session.execute(q).fetchall()
 
+
+def get_order_state(order_no):
+    OrderList = current_app.tables.get('order_list')
+    ReceiveItem = current_app.tables.get('receive_item')
+
+    q = select(OrderList.c.order_list_no).where(OrderList.c.order_no == order_no)
+    order_list = db.session.execute(q).fetchall()
+    orders = []
+    for o in order_list:
+        orders.append(o.order_list_no)
+
+    q = select(ReceiveItem).where(ReceiveItem.c.order_list_no.in_(orders))
+    receive_list = db.session.execute(q).fetchall()
+    if(len(receive_list) == len(order_list)):
+        return "완료"
+    elif len(receive_list) > 0:
+        return "진행중"
+
+def get_order_no_from_list(order_list_no):
+    OrderList = current_app.tables.get('order_list')
+    t = db.session.execute(select(OrderList.c.order_no).where(OrderList.c.order_list_no == order_list_no)).fetchone()
+    return t.order_no
+
+
+def update_order_state(order_no, state):
+    Order = current_app.tables.get('orders')
+    q = update(Order).where(Order.c.order_no == order_no).values(state=state)
+    db.session.execute(q)
+    db.session.commit()
 

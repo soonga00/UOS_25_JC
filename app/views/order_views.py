@@ -126,3 +126,5 @@ def get_branch_by_branch_code(branch_code):
     query = db.select(branch_list).where(branch_list.c.branch_code == branch_code)
     branch = db.session.execute(query).fetchone()
     return branch
+
+
