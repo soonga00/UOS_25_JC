@@ -30,8 +30,13 @@ def create_sell():
 
 
 
+@bp_sell.route('/list, methods=['GET'])
+@jwt_required()
+
+
+
 @bp_sell.route('/<int:item_no>', methods=['GET'])
-def get_sell(item_no:int):
+def get_item_info_for_sell(item_no:int):
     Item = current_app.tables.get('item')
     Event = current_app.tables.get('event')
     ItemEvent = current_app.tables.get('item_event')
@@ -93,6 +98,7 @@ def get_sell(item_no:int):
         "event_list": event_list,
         "event_num": event_num # 관련 이벤트 개수
     }), 200
+
 
 @bp_sell.route('/payment', methods=['POST'])
 @jwt_required()

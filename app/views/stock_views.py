@@ -150,10 +150,9 @@ def err():
 
 
 @bp_stock.route('/get', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def get_stock():
-    #branch_code = get_jwt_identity()
-    branch_code = 1
+    branch_code = get_jwt_identity()
     try:
         categories, sub_categories = get_item_categories()
     except Exception as e:
