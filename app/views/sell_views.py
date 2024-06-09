@@ -1,12 +1,30 @@
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import insert, and_, Sequence, select, update, join, text, between, func
+from sqlalchemy import insert, and_, Sequence, select, update, func
 from app import db
 from ..actions.emp import get_worker_no_now
-from datetime import datetime
 
 ###   판매  api    ###
 bp_sell = Blueprint('sell', __name__, url_prefix='/sell')
+
+@bp_sell.route('/consumer/<string:tel_no>', methods=['GET'])
+def get_consumer_no(tel_no: str):
+    Consumer = current_app.tables.get('consumer')
+    q = select(Consumer.c.consumer_no).where(Consumer.c.tel_no == tel_no)
+    try:
+        result = db.session.execute(q).fetchone()
+        if result:
+            consumer_no = result[0]  # fetchone()은 튜플을 반환하므로 첫 번째 요소를 가져옵니다.
+            return jsonify({'consumer_no': consumer_no})
+        else:
+            return jsonify({'msg': "해당 고객이 존재하지 않습니다."}), 404
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(e)
+        return jsonify({'msg': "고객 정보를 조회하는 중 오류가 발생했습니다."}), 500
+
+
+
 
 @bp_sell.route('', methods=['GET'])
 @jwt_required()
@@ -36,7 +54,7 @@ def create_sell():
 
 
 
-@bp_sell.route('/<int:item_no>', methods=['GET']))
+@bp_sell.route('/<int:item_no>', methods=['GET'])
 def get_item_info_for_sell(item_no:int):
     Item = current_app.tables.get('item')
     Event = current_app.tables.get('event')
