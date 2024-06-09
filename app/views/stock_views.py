@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import insert, and_, Sequence, select, update, join, text, delete
 from app import db
 from datetime import datetime
-from ..actions.emp import get_worker_now
+from ..actions.emp import get_worker_no_now
 
 ###   재고관리  api    ###
 bp_stock = Blueprint('stock', __name__, url_prefix='/stock')
@@ -29,7 +29,7 @@ def receive():
     branch_code = get_jwt_identity()
     curr_date = datetime.now()
     receive_item_seq = Sequence('receive_item_no_seq')
-    manager_no = get_worker_now(branch_code)  # 현재 근무 직원이 검품 담당자 번호
+    manager_no = get_worker_no_now(branch_code)  # 현재 근무 직원이 검품 담당자 번호
     print(f"상품 검품 담당자 (현재 근무 직원): {manager_no}")
 
     try:
@@ -117,7 +117,7 @@ def err():
     branch_code = get_jwt_identity()
     curr_date = datetime.now()
     receive_item_seq = Sequence('receive_item_no_seq')
-    manager_no = get_worker_now(branch_code)  # 현재 근무 직원이 검품 담당자 번호
+    manager_no = get_worker_no_now(branch_code)  # 현재 근무 직원이 검품 담당자 번호
     print(f"상품 검품 담당자 (현재 근무 직원): {manager_no}")
 
     try:

@@ -2,7 +2,7 @@ from flask import current_app
 from sqlalchemy import and_, select, join
 from app import db
 
-def get_worker_now(branch_code):
+def get_worker_no_now(branch_code):
     WorkRecord = current_app.tables.get('work_record')
     EmpBranch = current_app.tables.get('emp_branch')
 
