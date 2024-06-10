@@ -33,7 +33,7 @@ def create_sell():
     sell_no = db.session.execute(sell_no_seq.next_value()).scalar()
     seller_no = get_worker_no_now(branch_code)
 
-    q = insert(Sell).values(branch_code=branch_code, sell_no=sell_no, seller_no=seller_no, buy_abandon_flag="X")
+    q = insert(Sell).values(branch_code=branch_code, sell_no=sell_no, seller_no=seller_no, buy_abandon_flag="O")
     try:
         db.session.execute(q)
         db.session.commit()
