@@ -77,17 +77,17 @@ def daily_settlement():
         # Calculate sales amount, margin, and other data for the day
         sales_data = db.session.execute(
             select(
-                func.sum(SellList.c.sell_qty * (Item.c.consumer_price - Item.c.deliv_price)).label('total_margin'),
-                func.sum(SellList.c.sell_qty * Item.c.consumer_price).label('total_amount')
+                func.sum(SellList.c.sell_qty * (SellList.c.item_price - Item.c.deliv_price)).label('total_margin'),
+                func.sum(SellList.c.sell_qty * SellList.c.item_price).label('total_amount')
             )
+            .where(SellList.c.return_flag == 'X')
             .select_from(
                 SellList
                 .join(Sell, and_(
                     Sell.c.sell_no == SellList.c.sell_no,
                     Sell.c.branch_code == branch_code,
                     func.trunc(Sell.c.sell_date) == func.trunc(func.current_date()),
-                    Sell.c.buy_abandon_flag == 'x'
-                ))
+                    Sell.c.buy_abandon_flag == 'x'                ))
                 .join(Item, SellList.c.item_no == Item.c.item_no)
             )
         ).one_or_none()

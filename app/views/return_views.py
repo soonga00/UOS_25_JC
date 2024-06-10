@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import select, insert, join, Sequence, func
+from sqlalchemy import select, insert, join, Sequence, func, update
 from app import db
 
 
@@ -41,15 +41,17 @@ def return_item():
     """
     data = request.get_json()
     ReturnList = current_app.tables.get('return_dispose_list')
+    SellList = current_app.tables.get('sell_list')
     return_list_no_seq = Sequence('retrun_list_no_seq')
     branch_code = get_jwt_identity()
     curr_time = func.current_timestamp()
 
     # Check if the sell_list_no is already returned
-    check_q = select(ReturnList).where(ReturnList.c.sell_list_no == data['sell_list_no'])
+    #check_q = select(ReturnList).where(ReturnList.c.sell_list_no == data['sell_list_no'])
+    check_q = select(SellList).where(SellList.c.sell_list_no == data['sell_list_no'])
     existing_return = db.session.execute(check_q).fetchone()
 
-    if existing_return:
+    if existing_return.return_flag == 'O':
         return jsonify({"msg": "반품이 이미 된 항목입니다."}), 400
 
     return_list_no = db.session.execute(return_list_no_seq.next_value()).scalar()
@@ -63,8 +65,12 @@ def return_item():
         return_flag="O"
     )
 
+    update_stmt = (update(SellList)
+                   .where(SellList.c.sell_list_no == data['sell_list_no'])
+                   .values(return_flag="O")) # 판매 목록에 반품 플래그 업데이트
     try:
         db.session.execute(stmt)
+        db.session.execute(update_stmt)
         db.session.commit()
         return jsonify({"msg": f"{data['sell_list_no']} 반품 신청 완료: 반품 {return_list_no} 번"})
     except Exception as e:

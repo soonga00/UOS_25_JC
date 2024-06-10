@@ -24,8 +24,6 @@ def get_consumer_no(tel_no: str):
         return jsonify({'msg': "고객 정보를 조회하는 중 오류가 발생했습니다."}), 500
 
 
-
-
 @bp_sell.route('', methods=['GET'])
 @jwt_required()
 def create_sell():
@@ -206,9 +204,9 @@ def payment():
     sex = None
     pay_amt = 0
 
-    if data['age']:
+    if 'age' in data:
         age = data['age']
-    if data['sex']:
+    if 'sex'in data:
         sex = data['sex']
 
     for item in data['item_list']: # 각 아이템별로 판매 목록 생성 & 재고 수정 
