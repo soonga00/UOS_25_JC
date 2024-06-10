@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import insert
+from sqlalchemy import insert, select, and_, func, extract
 
 from app import db
 from datetime import datetime
@@ -111,3 +111,5 @@ def get_work_records():
     except Exception as e:
         print(e)
         return jsonify({"msg": str(e)}), 400
+
+
