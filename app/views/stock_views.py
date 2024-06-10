@@ -2,7 +2,7 @@ from typing import List, Dict, Union, Any
 
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import insert, and_, Sequence, select, update, join, text, delete
+from sqlalchemy import insert, and_, Sequence, select, update, join, text, delete, func
 from sqlalchemy.exc import SQLAlchemyError
 import base64
 from app import db
@@ -292,6 +292,81 @@ def delete_stock():
         print(str(e))
         return jsonify({"msg": "재고 삭제가 이루어지지 않았습니다. 다시 시도해 주세요."}), 400
 
+
+@bp_stock.route('/loss', methods=['POST'])
+@jwt_required()
+def loss_stock():
+    """
+    req = {
+        "item_no": 1,
+        "exp_date": "2024-09-29 00:00:00",
+        "actual_qty": 50, # 실제 매장에 있는 전체 상품 개수
+        "arrangement_qty": 10, # 그 중 진열된 상품 개수
+        "loss_cause": "바보가튼 직원탓"
+    }
+    :return:
+    """
+    data = request.get_json()
+    branch_code = get_jwt_identity()
+    #exp_date = datetime.strptime(data['exp_date'], '%a, %d %b %Y %H:%M:%S %Z')
+    exp_date = datetime.strptime(data['exp_date'], '%Y-%m-%d %H:%M:%S')
+    stock = get_stock_info(branch_code, data['item_no'], exp_date)
+    if not stock:
+        return jsonify({"msg": "등록되지 않은 재고입니다."})
+    loss = stock.total_qty - data['actual_qty']
+
+    if loss <= 0: # 기록된 수량보다 실제 수량이 많거나 같은 경우는 손실이 아님.
+        return jsonify({"msg": "손실이 아닙니다."})
+
+    curr_emp = get_worker_no_now(branch_code)
+    current_date = func.current_date()
+    Loss = current_app.tables.get('loss')
+    loss_no_seq = Sequence('loss_no_seq')
+    item_price = get_item_price(item_no=data['item_no'])
+    stmt = insert(Loss).values(
+        loss_no = db.session.execute(loss_no_seq.next_value()).scalar(),
+        record_qty = stock.total_qty,
+        actual_qty = data['actual_qty'],
+        loss_amt = loss * item_price,
+        loss_cause = data['loss_cause'],
+        loss_date = current_date,
+        branch_code = branch_code,
+        item_no = data['item_no'],
+        seller_no = curr_emp
+    )
+    try:
+        db.session.execute(stmt)
+        Stock = current_app.tables.get('stock')
+        stmt = update(Stock).where(and_(
+            Stock.c.branch_code == branch_code,
+            Stock.c.item_no == data['item_no'],
+            Stock.c.exp_date == exp_date
+        )).values(total_qty=data['actual_qty'], arrangement_qty=data['arrangement_qty'])
+        db.session.execute(stmt)
+        db.session.commit()
+        return jsonify({"msg": f"손실 {loss * item_price:,}원, 담당자: {curr_emp}번 등록되었습니다."})
+    except Exception as e:
+        db.session.rollback()
+        print(str(e))
+        return jsonify({"msg": "손실 등록에 실패했습니다. 다시 시도해 주세요."})
+
+
+def get_item_price(item_no):
+    Item = current_app.tables.get('item')
+    q = select(Item.c.deliv_price).where(Item.c.item_no == item_no)
+
+    return db.session.execute(q).fetchone().deliv_price
+
+
+def get_stock_info(branch_code, item_no, exp_data):
+    Stock = current_app.tables.get('stock')
+    q = (select(Stock)
+         .where(
+        and_(Stock.c.branch_code == branch_code,
+             Stock.c.item_no == item_no,
+             Stock.c.exp_date == exp_data)))
+    stock = db.session.execute(q).fetchone()
+    return stock
 
 
 def get_item_no_from_order_list(order_list_no):
