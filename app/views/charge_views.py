@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import select, func, extract, and_, Sequence, insert
 from app import db
@@ -63,17 +63,17 @@ def get_charge_status():
         return jsonify({"msg": "지출 데이터를 가져오는 데 실패했습니다."}), 500
 
 
-@bp_charge.route('/labor_cost', methods=['GET'])
+@bp_charge.route('/labor_cost', methods=['GET']) # 인건비 지출
 @jwt_required()
 def get_charge_emp():
 
     branch_code = get_jwt_identity()
-    Charges = current_app.tables.get('charge')
+    Charge = current_app.tables.get('charge')
     Emp = current_app.tables.get('emp')
 
     curr_emp_no = get_worker_no_now(branch_code)
-    manager = get_branch_manager(branch_code)
-    if curr_emp_no != manager.emp_no: # 지점장이 아닌 경우 return
+    manager_no = get_branch_manager(branch_code)
+    if curr_emp_no != manager_no: # 지점장이 아닌 경우 return
         print(f"지점장이 아닌 근무자 {curr_emp_no} 의 지출 접근")
         return jsonify({"msg": f"지출 관리는 지점장만 가능합니다. 현재 근무자: {curr_emp_no}번"})
 
@@ -85,7 +85,7 @@ def get_charge_emp():
     total_cost = 0
     rst = []
     for emp_no in emp_list:
-        if emp_no == manager.emp_no: # 지점장은 인건비 안 줌
+        if emp_no == manager_no: # 지점장은 인건비 안 줌
             continue
         cost = get_work_cost(branch_code, emp_no)
         emp = db.session.execute(select(Emp).where(Emp.c.emp_no == emp_no)).fetchone()
@@ -93,7 +93,7 @@ def get_charge_emp():
         total_cost += cost
 
     charge_no_seq = Sequence('charge_no_seq')
-    stmt = insert(Charges).values(
+    stmt = insert(Charge).values(
         charge_no=db.session.execute(charge_no_seq.next_value()).scalar(),
         charge_date=func.current_date(),
         charge_amt=total_cost,
@@ -107,18 +107,48 @@ def get_charge_emp():
     return jsonify({"msg": rst, "total_cost": total_cost}), 200
 
 
-# @bp_charge.route('/maintenance', methods=['POST'])
-# @jwt_required()
-# def get_maintenance():
-#     branch_code = get_jwt_identity()
+@bp_charge.route('/maintenance', methods=['POST']) # 유지비 지출
+@jwt_required()
+def get_maintenance():
+    """
+    req = {
+        "cost': 314500 # 유지비
+    }
+    :return:
+    """
+    branch_code = get_jwt_identity()
+    data = request.get_json()
+    curr_emp_no = get_worker_no_now(branch_code)
 
+    manager_no = get_branch_manager(branch_code)
+    if curr_emp_no != manager_no:
+        print(f"지점장 {manager_no}이 아닌 근무자 {curr_emp_no} 의 지출 접근")
+        return jsonify({"msg": f"지출 관리는 지점장만 가능합니다. 현재 근무자: {curr_emp_no}번"})
+
+    Charge = current_app.tables.get('charge')
+    charge_no_seq = Sequence('charge_no_seq')
+    try:
+        stmt = insert(Charge).values(
+            charge_no=db.session.execute(charge_no_seq.next_value()).scalar(),
+            charge_date=func.current_date(),
+            charge_amt=data['cost'],
+            branch_code=branch_code,
+            charge_type="1" # 유지비 "1"
+        )
+        db.session.execute(stmt)
+        db.session.commit()
+        return jsonify({"msg": f"유지비 {data['cost']}원 지출 처리 완료되었습니다."}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(e)
+        return jsonify({"msg": "유지비 지출 처리에 실패했습니다. 다시 시도해 주세요."})
 
 
 def get_branch_manager(branch_code):
     BranchList = current_app.tables.get('branch_list')
-    manager = db.session.execute(
-        select(BranchList).where(BranchList.c.branch_code == branch_code)).fetchone()
-    return manager
+    manager_no = db.session.execute(
+        select(BranchList.c.manager_no).where(BranchList.c.branch_code == branch_code)).fetchone()
+    return manager_no.manager_no
 
 
 def get_work_cost(branch_code, emp_no):
