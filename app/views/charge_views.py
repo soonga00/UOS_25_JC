@@ -72,9 +72,8 @@ def get_charge_emp():
     Emp = current_app.tables.get('emp')
 
     curr_emp_no = get_worker_no_now(branch_code)
-    BranchList = current_app.tables.get('branch_list')
-    manager = db.session.execute(select(BranchList.c.manager_no).where(BranchList.c.branch_code == branch_code)).fetchone()
-    if curr_emp_no != manager.manager_no: # 지점장이 아닌 경우 return
+    manager = get_branch_manager(branch_code)
+    if curr_emp_no != manager.emp_no: # 지점장이 아닌 경우 return
         print(f"지점장이 아닌 근무자 {curr_emp_no} 의 지출 접근")
         return jsonify({"msg": f"지출 관리는 지점장만 가능합니다. 현재 근무자: {curr_emp_no}번"})
 
@@ -86,6 +85,8 @@ def get_charge_emp():
     total_cost = 0
     rst = []
     for emp_no in emp_list:
+        if emp_no == manager.emp_no: # 지점장은 인건비 안 줌
+            continue
         cost = get_work_cost(branch_code, emp_no)
         emp = db.session.execute(select(Emp).where(Emp.c.emp_no == emp_no)).fetchone()
         rst.append(f"{emp_no}번 사원 {emp.emp_nm} {emp.bank_nm} {emp.acct_no}로 {cost}원 지급")
@@ -104,6 +105,20 @@ def get_charge_emp():
 
     print(rst)
     return jsonify({"msg": rst, "total_cost": total_cost}), 200
+
+
+# @bp_charge.route('/maintenance', methods=['POST'])
+# @jwt_required()
+# def get_maintenance():
+#     branch_code = get_jwt_identity()
+
+
+
+def get_branch_manager(branch_code):
+    BranchList = current_app.tables.get('branch_list')
+    manager = db.session.execute(
+        select(BranchList).where(BranchList.c.branch_code == branch_code)).fetchone()
+    return manager
 
 
 def get_work_cost(branch_code, emp_no):
