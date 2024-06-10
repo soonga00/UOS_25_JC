@@ -42,9 +42,17 @@ def return_item():
     data = request.get_json()
     ReturnList = current_app.tables.get('return_dispose_list')
     return_list_no_seq = Sequence('retrun_list_no_seq')
-    return_list_no = db.session.execute(return_list_no_seq.next_value()).scalar()
     branch_code = get_jwt_identity()
     curr_time = func.current_timestamp()
+
+    # Check if the sell_list_no is already returned
+    check_q = select(ReturnList).where(ReturnList.c.sell_list_no == data['sell_list_no'])
+    existing_return = db.session.execute(check_q).fetchone()
+
+    if existing_return:
+        return jsonify({"msg": "반품이 이미 된 항목입니다."}), 400
+
+    return_list_no = db.session.execute(return_list_no_seq.next_value()).scalar()
 
     stmt = insert(ReturnList).values(
         return_list_no=return_list_no,
