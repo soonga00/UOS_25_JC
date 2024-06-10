@@ -60,8 +60,9 @@ def get_sell_list():
     Sell = current_app.tables.get('sell')
     SellList = current_app.tables.get('sell_list')
     Emp = current_app.tables.get('emp')
+    Item = current_app.tables.get('item')  # Item 테이블 추가
 
-    sell_q = (select(Sell, Emp)
+    sell_q = (select(Sell.c.sell_no, Sell.c.seller_no, Emp.c.nm, Sell.c.consumer_no, Sell.c.sell_date, Sell.c.pay_amt, Sell.c.pay_method)
               .where(and_(Sell.c.branch_code == branch_code,
                           Sell.c.buy_abandon_flag == "x"))
               .order_by(desc(Sell.c.sell_date))
@@ -73,10 +74,10 @@ def get_sell_list():
         current_app.logger.error(e)
         return jsonify({"msg": "판매 조회에 실패했습니다. 다시 시도해 주세요."})
 
-    t = [] # 판매 담을 배열
+    t = []  # 판매 담을 배열
     for sell in sells:
         t_list = {
-            "sell_no" : sell.sell_no,
+            "sell_no": sell.sell_no,
             "seller_no": sell.seller_no,
             "seller_nm": sell.emp_nm,
             "consumer_no": sell.consumer_no,
@@ -84,8 +85,10 @@ def get_sell_list():
             "pay_amt": sell.pay_amt,
             "pay_method": sell.pay_method
         }
-        s = [] # 판매 목록들 담을 배열
-        q = select(SellList).where(SellList.c.sell_no == sell.sell_no)
+        s = []  # 판매 목록들 담을 배열
+        q = select(SellList.c.sell_list_no, SellList.c.item_no, SellList.c.sell_qty, SellList.c.item_price, Item.c.item_nm)\
+            .where(SellList.c.sell_no == sell.sell_no)\
+            .select_from(join(SellList, Item, SellList.c.item_no == Item.c.item_no))
         try:
             selllist_list = db.session.execute(q).fetchall()
         except Exception as e:
@@ -96,6 +99,7 @@ def get_sell_list():
             s.append({
                 "sell_list_no": selllist.sell_list_no,
                 "item_no": selllist.item_no,
+                "item_nm": selllist.item_nm,
                 "sell_qty": selllist.sell_qty,
                 "item_price": selllist.item_price,
             })
@@ -104,6 +108,8 @@ def get_sell_list():
 
     print(f"{branch_code}번 지점 판매 목록 조회")
     return jsonify({"sell_list": t}), 200
+
+
 
 
 @bp_sell.route('/<int:item_no>', methods=['GET'])
