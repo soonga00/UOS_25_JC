@@ -33,7 +33,7 @@ def create_sell():
     sell_no = db.session.execute(sell_no_seq.next_value()).scalar()
     seller_no = get_worker_no_now(branch_code)
 
-    q = insert(Sell).values(branch_code=branch_code, sell_no=sell_no, seller_no=seller_no, buy_abandon_flag="x")
+    q = insert(Sell).values(branch_code=branch_code, sell_no=sell_no, seller_no=seller_no, buy_abandon_flag="X")
     try:
         db.session.execute(q)
         db.session.commit()
@@ -62,7 +62,7 @@ def get_sell_list():
 
     sell_q = (select(Sell.c.sell_no, Sell.c.seller_no, Emp.c.nm, Sell.c.consumer_no, Sell.c.sell_date, Sell.c.pay_amt, Sell.c.pay_method)
               .where(and_(Sell.c.branch_code == branch_code,
-                          Sell.c.buy_abandon_flag == "x"))
+                          Sell.c.buy_abandon_flag == "X"))
               .order_by(desc(Sell.c.sell_date))
               .select_from(join(Sell, Emp, Sell.c.seller_no == Emp.c.emp_no)))
     try:
@@ -309,7 +309,8 @@ def payment():
         pay_amt = pay_amt,
         pay_method = data['pay_method'],
         sell_date = curr_time,
-        mileage =  mileage
+        mileage =  mileage,
+        buy_abandon_flag = 'X'
     ))
     
     try:

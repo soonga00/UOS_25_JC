@@ -87,7 +87,7 @@ def daily_settlement():
                     Sell.c.sell_no == SellList.c.sell_no,
                     Sell.c.branch_code == branch_code,
                     func.trunc(Sell.c.sell_date) == func.trunc(func.current_date()),
-                    Sell.c.buy_abandon_flag == 'x'                ))
+                    Sell.c.buy_abandon_flag == 'X'                ))
                 .join(Item, SellList.c.item_no == Item.c.item_no)
             )
         ).one_or_none()
