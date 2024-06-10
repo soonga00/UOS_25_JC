@@ -308,14 +308,18 @@ def loss_stock():
     """
     data = request.get_json()
     branch_code = get_jwt_identity()
-    #exp_date = datetime.strptime(data['exp_date'], '%a, %d %b %Y %H:%M:%S %Z')
-    exp_date = datetime.strptime(data['exp_date'], '%Y-%m-%d %H:%M:%S')
+    exp_date = datetime.strptime(data['exp_date'], '%a, %d %b %Y %H:%M:%S %Z')
+    # exp_date = datetime.strptime(data['exp_date'], '%Y-%m-%d %H:%M:%S')
     stock = get_stock_info(branch_code, data['item_no'], exp_date)
     if not stock:
         return jsonify({"msg": "등록되지 않은 재고입니다."})
-    loss = stock.total_qty - data['actual_qty']
 
-    if loss <= 0: # 기록된 수량보다 실제 수량이 많거나 같은 경우는 손실이 아님.
+    actual_qty = int(data['actual_qty'])  # 문자열을 정수로 변환
+    arrangement_qty = int(data['arrangement_qty'])  # 문자열을 정수로 변환
+
+    loss = stock.total_qty - actual_qty
+
+    if loss <= 0:  # 기록된 수량보다 실제 수량이 많거나 같은 경우는 손실이 아님.
         return jsonify({"msg": "손실이 아닙니다."})
 
     curr_emp = get_worker_no_now(branch_code)
@@ -324,15 +328,15 @@ def loss_stock():
     loss_no_seq = Sequence('loss_no_seq')
     item_price = get_item_price(item_no=data['item_no'])
     stmt = insert(Loss).values(
-        loss_no = db.session.execute(loss_no_seq.next_value()).scalar(),
-        record_qty = stock.total_qty,
-        actual_qty = data['actual_qty'],
-        loss_amt = loss * item_price,
-        loss_cause = data['loss_cause'],
-        loss_date = current_date,
-        branch_code = branch_code,
-        item_no = data['item_no'],
-        seller_no = curr_emp
+        loss_no=db.session.execute(loss_no_seq.next_value()).scalar(),
+        record_qty=stock.total_qty,
+        actual_qty=actual_qty,
+        loss_amt=loss * item_price,
+        loss_cause=data['loss_cause'],
+        loss_date=current_date,
+        branch_code=branch_code,
+        item_no=data['item_no'],
+        seller_no=curr_emp
     )
     try:
         db.session.execute(stmt)
@@ -341,7 +345,7 @@ def loss_stock():
             Stock.c.branch_code == branch_code,
             Stock.c.item_no == data['item_no'],
             Stock.c.exp_date == exp_date
-        )).values(total_qty=data['actual_qty'], arrangement_qty=data['arrangement_qty'])
+        )).values(total_qty=actual_qty, arrangement_qty=arrangement_qty)
         db.session.execute(stmt)
         db.session.commit()
         return jsonify({"msg": f"손실 {loss * item_price:,}원, 담당자: {curr_emp}번 등록되었습니다."})
