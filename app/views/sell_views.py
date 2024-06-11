@@ -388,7 +388,8 @@ def create_sell_list(params):
         sell_qty=params['sell_qty'],
         item_price=params['item_price'],
         age=params['age'],
-        sex=params['sex']
+        sex=params['sex'],
+        return_flag='X'
     )
 
     try:
