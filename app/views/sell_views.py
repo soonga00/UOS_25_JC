@@ -17,7 +17,17 @@ def get_consumer_no(tel_no: str):
             consumer_no = result[0]  # fetchone()은 튜플을 반환하므로 첫 번째 요소를 가져옵니다.
             return jsonify({'consumer_no': consumer_no})
         else:
-            return jsonify({'msg': "해당 고객이 존재하지 않습니다."}), 404
+            consumer_seq = Sequence('consumer_no_seq')
+            new_consumer_no = db.session.execute(consumer_seq.next_value()).scalar()
+            new_q = (insert(Consumer)
+                     .values(consumer_no = new_consumer_no,
+                             nm = request.args.get('nm'),
+                             tel_no = tel_no,
+                             mileage = 0)
+                     )
+            db.session.execute(new_q)
+            db.session.commit()
+            return jsonify({'consumer_no': new_consumer_no})
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(e)
