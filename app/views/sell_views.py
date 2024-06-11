@@ -248,7 +248,8 @@ def payment():
                     'sell_qty': item['sell_qty'],
                     'item_price': 0,
                     'age': age,
-                    'sex': sex
+                    'sex': sex,
+                    'return_flag': 'X'
                 }
                 create_sell_list(params)
                 params = {
