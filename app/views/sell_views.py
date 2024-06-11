@@ -228,7 +228,8 @@ def payment():
                     'sell_qty': item['sell_qty'],
                     'item_price': item_price,
                     'age': age,
-                    'sex': sex
+                    'sex': sex,
+                    'return_flag': 'X'
                 }
         try:
             create_sell_list(params) # 판매 목록 생성
