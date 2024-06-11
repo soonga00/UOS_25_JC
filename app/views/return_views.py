@@ -42,7 +42,7 @@ def return_item():
     data = request.get_json()
     ReturnList = current_app.tables.get('return_dispose_list')
     SellList = current_app.tables.get('sell_list')
-    return_list_no_seq = Sequence('retrun_list_no_seq')
+    return_list_no_seq = Sequence('return_list_no_seq')
     branch_code = get_jwt_identity()
     curr_time = func.current_timestamp()
 

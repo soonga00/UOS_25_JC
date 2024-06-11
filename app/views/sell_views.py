@@ -276,7 +276,7 @@ def payment():
         # 재고 수정
         params = {
             'branch_code': branch_code,
-            'item_no': give_item_no,
+            'item_no': item_no,
             'sell_qty': item['sell_qty'],
         }
         try:
