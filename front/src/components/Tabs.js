@@ -1,19 +1,15 @@
 import React from 'react';
 
-const Tabs = ({ selectedCategory, onCategoryChange }) => {
-  const categories = ['과자', '음료', '빙과류'];
-
+const Tabs = ({ selectedCategory, onCategoryChange, categories }) => {
   return (
-    <div className="flex bg-gray-100 rounded-tl-lg rounded-tr-lg">
-      {categories.map((category, index) => (
+    <div className="flex bg-gray-200 rounded-t-lg">
+      {categories.map((category) => (
         <button
           key={category}
-          className={`py-2 px-4 focus:outline-none rounded-tl-lg rounded-tr-lg ${
-            selectedCategory === category
-              ? 'bg-white text-gray-700'
-              : 'bg-gray-200 text-gray-700'
-          }`}
           onClick={() => onCategoryChange(category)}
+          className={`p-2 flex-1 hover:bg-uosBlueSoft ${
+            selectedCategory === category ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
         >
           {category}
         </button>

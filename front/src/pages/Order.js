@@ -1,36 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProductInfo from '../components/ProductInfo';
 import SelectedProducts from '../components/SelectedProducts';
 import Tabs from '../components/Tabs';
 
 const Order = () => {
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('과자');
-  
-  const products = [
-    { id: 1, name: '상품명1', description: '상품 설명1', price: 1000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyMjA0MDdfMjA3%2FMDAxNjQ5MzA2MDc3MjY4.RtQA0FPvbrzHnifCe9pNbBYGmOKTdJTDT0WOwbkTF4wg.WLQheE5GvREum0MPOGvH2RwngB_k-dkmAb5rBPJ8PsUg.JPEG.th2dud%2FFPkYSoZakAIBvX-.jpg&type=sc960_832', category: '과자' },
-    { id: 2, name: '상품명2', description: '상품 설명2', price: 2000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyMjA0MDdfMjA3%2FMDAxNjQ5MzA2MDc3MjY4.RtQA0FPvbrzHnifCe9pNbBYGmOKTdJTDT0WOwbkTF4wg.WLQheE5GvREum0MPOGvH2RwngB_k-dkmAb5rBPJ8PsUg.JPEG.th2dud%2FFPkYSoZakAIBvX-.jpg&type=sc960_832', category: '과자' },
-    { id: 3, name: '상품명3', description: '상품 설명3', price: 3000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyMjA0MDdfMjA3%2FMDAxNjQ5MzA2MDc3MjY4.RtQA0FPvbrzHnifCe9pNbBYGmOKTdJTDT0WOwbkTF4wg.WLQheE5GvREum0MPOGvH2RwngB_k-dkmAb5rBPJ8PsUg.JPEG.th2dud%2FFPkYSoZakAIBvX-.jpg&type=sc960_832', category: '과자' },
-    { id: 4, name: '상품명4', description: '상품 설명4', price: 4000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fblogfiles.naver.net%2FMjAyMjA0MDdfMjA3%2FMDAxNjQ5MzA2MDc3MjY4.RtQA0FPvbrzHnifCe9pNbBYGmOKTdJTDT0WOwbkTF4wg.WLQheE5GvREum0MPOGvH2RwngB_k-dkmAb5rBPJ8PsUg.JPEG.th2dud%2FFPkYSoZakAIBvX-.jpg&type=sc960_832', category: '과자' },
-    { id: 5, name: '상품명5', description: '상품 설명5', price: 5000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20240430_108%2F1714445271288GavtY_JPEG%2F115581114001663137_1506371242.jpg&type=sc960_832', category: '음료' },
-    { id: 6, name: '상품명6', description: '상품 설명6', price: 6000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20240430_108%2F1714445271288GavtY_JPEG%2F115581114001663137_1506371242.jpg&type=sc960_832', category: '음료' },
-    { id: 7, name: '상품명7', description: '상품 설명7', price: 7000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20240430_108%2F1714445271288GavtY_JPEG%2F115581114001663137_1506371242.jpg&type=sc960_832', category: '음료' },
-    { id: 8, name: '상품명8', description: '상품 설명8', price: 8000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20240430_108%2F1714445271288GavtY_JPEG%2F115581114001663137_1506371242.jpg&type=sc960_832', category: '음료' },
-    { id: 9, name: '상품명9', description: '상품 설명9', price: 9000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20240430_108%2F1714445271288GavtY_JPEG%2F115581114001663137_1506371242.jpg&type=sc960_832', category: '음료' },
-    { id: 10, name: '상품명10', description: '상품 설명10', price: 10000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-    { id: 11, name: '상품명11', description: '상품 설명11', price: 11000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-    { id: 12, name: '상품명12', description: '상품 설명12', price: 12000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-    { id: 13, name: '상품명13', description: '상품 설명13', price: 13000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-    { id: 14, name: '상품명14', description: '상품 설명14', price: 14000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-    { id: 15, name: '상품명15', description: '상품 설명15', price: 15000, image: 'https://search.pstatic.net/common/?src=http%3A%2F%2Fshop1.phinf.naver.net%2F20230510_160%2F16836959889327EIm6_JPEG%2F8903267089640538_313367042.jpeg&type=sc960_832', category: '빙과류' },
-  ];
-  
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('');
+  const [selectedSubSubCategory, setSelectedSubSubCategory] = useState('');
+  const [categories, setCategories] = useState({});
+  const [subCategories, setSubCategories] = useState({});
+  const [products, setProducts] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:5000/item/code')
+      .then(response => response.json())
+      .then(data => {
+        setCategories(data.categories);
+        setSubCategories(data.sub_categories);
+      })
+      .catch(error => console.error('Error fetching code data:', error));
+  }, []);
+
   const addProduct = (product) => {
-    const existingProduct = selectedProducts.find((p) => p.id === product.id);
+    const existingProduct = selectedProducts.find((p) => p.item_no === product.item_no);
     if (existingProduct) {
       setSelectedProducts(
         selectedProducts.map((p) =>
-          p.id === product.id ? { ...p, quantity: p.quantity + product.quantity } : p
+          p.item_no === product.item_no ? { ...p, quantity: p.quantity + product.quantity } : p
         )
       );
     } else {
@@ -38,41 +37,121 @@ const Order = () => {
     }
   };
 
-  const updateProductQuantity = (id, delta) => {
+  const updateProductQuantity = (item_no, delta) => {
     setSelectedProducts((prevProducts) => {
       const updatedProducts = prevProducts.map((p) =>
-        p.id === id ? { ...p, quantity: Math.max(0, p.quantity + delta) } : p
+        p.item_no === item_no ? { ...p, quantity: Math.max(0, p.quantity + delta) } : p
       );
-      return updatedProducts.filter((p) => p.quantity > 0); // 수량이 0이면 목록에서 제거
+      return updatedProducts.filter((p) => p.quantity > 0);
     });
   };
 
-  const removeProduct = (id) => {
+  const removeProduct = (item_no) => {
     setSelectedProducts((prevProducts) =>
-      prevProducts.filter((product) => product.id !== id)
+      prevProducts.filter((product) => product.item_no !== item_no)
     );
   };
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
+    setSelectedSubCategory('');
+    setSelectedSubSubCategory('');
   };
 
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory
-  );
+  const handleSubCategoryChange = (subCategory) => {
+    setSelectedSubCategory(subCategory);
+    setSelectedSubSubCategory('');
+  };
+
+  const handleSubSubCategoryChange = (subSubCategory) => {
+    setSelectedSubSubCategory(subSubCategory);
+    fetchItems(subSubCategory);
+  };
+
+  const fetchItems = (subSubCategory) => {
+    const selectedSubCategoryObj = subCategories[selectedSubCategory].find(
+      sub => sub.code_nm === subSubCategory
+    );
+
+    if (!selectedSubCategoryObj) {
+      console.error('Invalid subSubCategory selected');
+      return;
+    }
+
+    const requestData = {
+      code_type: selectedSubCategoryObj.code_type,
+      code: selectedSubCategoryObj.code
+    };
+
+    fetch('http://127.0.0.1:5000/item/detail', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData),
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Fetched products:', data.item_list);
+        setProducts(data.item_list);
+      })
+      .catch(error => console.error('Error fetching item details:', error));
+  };
+
+  const getSubCategories = (category) => {
+    return subCategories[category] ? subCategories[category].map(sub => sub.code_nm) : [];
+  };
+
+  const handleOrderSubmit = () => {
+    const orderData = {
+      order_list: selectedProducts.map(product => ({
+        item_no: product.item_no,
+        order_qty: product.quantity
+      }))
+    };
+
+    fetch('http://127.0.0.1:5000/order/req', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(orderData),
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.msg) {
+          alert(data.msg);
+          setSelectedProducts([]); // 발주 신청이 성공하면 선택된 상품 초기화
+        } else {
+          alert('Failed to submit order.');
+        }
+      })
+      .catch(error => console.error('Error submitting order:', error));
+  };
+
+  const filteredProducts = products;
 
   return (
     <div className="flex h-screen w-screen">
       <div className="w-2/3 h-full p-6 bg-gray-100">
+        <button onClick={() => navigate('/order-list')} className="mb-4 p-2 bg-blue-500 text-white rounded w-1/6">
+          발주목록
+        </button>
         <div className="flex flex-col h-full overflow-hidden bg-gray-100 rounded-lg">
-          <Tabs selectedCategory={selectedCategory} onCategoryChange={handleCategoryChange} />
+          <Tabs selectedCategory={selectedCategory} onCategoryChange={handleCategoryChange} categories={Object.keys(categories)} />
+          {selectedCategory && (
+            <Tabs selectedCategory={selectedSubCategory} onCategoryChange={handleSubCategoryChange} categories={categories[selectedCategory]} />
+          )}
+          {selectedSubCategory && (
+            <Tabs selectedCategory={selectedSubSubCategory} onCategoryChange={handleSubSubCategoryChange} categories={getSubCategories(selectedSubCategory)} />
+          )}
           <div className="flex-1 overflow-y-auto w-full bg-white rounded-tr-lg">
             <div className="grid grid-cols-3 gap-4 w-full p-4">
               {filteredProducts.map((product) => (
-                <ProductInfo key={product.id} product={product} addProduct={addProduct} />
+                <ProductInfo key={product.item_no} product={product} addProduct={addProduct} />
               ))}
             </div>
-            {/* 여백을 추가하기 위해 아래 div를 추가합니다. */}
             <div className="h-32"></div>
           </div>
         </div>
@@ -82,12 +161,11 @@ const Order = () => {
           products={selectedProducts}
           updateProductQuantity={updateProductQuantity}
           removeProduct={removeProduct}
+          handleOrderSubmit={handleOrderSubmit} // handleOrderSubmit 추가
         />
       </div>
     </div>
   );
-  
-   
 };
 
 export default Order;
