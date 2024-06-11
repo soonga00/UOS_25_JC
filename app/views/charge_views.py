@@ -165,7 +165,7 @@ def get_royalty():
 
     total_margin = get_total_margin(branch_code)
     payment_ratio = get_pyment_ratio(branch_code)
-    royalty_cost = int(total_margin * payment_ratio)
+    royalty_cost = int(total_margin * payment_ratio // 100)
 
     Charge = current_app.tables.get('charge')
     charge_no_seq = Sequence('charge_no_seq')
